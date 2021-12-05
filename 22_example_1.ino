@@ -66,7 +66,6 @@ void setup() {
   myservo.writeMicroseconds(duty_neutral);
 }
 
-
 /////////////////////////////////////////////////////////////////
 ///////////////////////////// loop //////////////////////////////
 /////////////////////////////////////////////////////////////////
@@ -88,6 +87,10 @@ void loop() {
       dist_ema = alpha * dist_cali + (1 - alpha) * dist_ema_prev;
       dist_ema_prev = dist_ema;
     }
+
+  if(dist_ema > 200 && dist_ema < 350) digitalWrite(PIN_LED, 0);
+  else digitalWrite(PIN_LED, 255);
+    
     error_curr = dist_target - dist_ema;
     pterm = error_curr;
     control = _KP * pterm;
