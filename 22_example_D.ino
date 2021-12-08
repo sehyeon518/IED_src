@@ -25,7 +25,7 @@
 #define _INTERVAL_SERIAL 100
 
 #define _KP 0.0
-#define _KD 5.0
+#define _KD 40
 
 Servo myservo;
 
@@ -75,11 +75,6 @@ void setup() {
 void loop() {
   if (millis() < last_sampling_time_dist + _INTERVAL_DIST) return;
   else event_dist = true;
-  if (millis() < last_sampling_time_servo + _INTERVAL_SERVO) return;
-  else event_servo = true;
-  if (millis() < last_sampling_time_serial + _INTERVAL_SERIAL) return;
-  else event_serial = true;
-
   if (event_dist) {
     event_dist = false;
     dist_raw = ir_distance();
@@ -89,7 +84,6 @@ void loop() {
       dist_ema = alpha * dist_cali + (1 - alpha) * dist_ema_prev;
       dist_ema_prev = dist_ema;
     }
-
     if(dist_ema > 200 && dist_ema < 350) digitalWrite(PIN_LED, 0);
     else digitalWrite(PIN_LED, 255);
   
@@ -98,14 +92,16 @@ void loop() {
     dterm = _KD * (error_curr - error_prev);
     control = dterm;
     
-    duty_curr = duty_neutral + control;
+    duty_target = duty_neutral + control;
 
     if (duty_target < _DUTY_MIN) duty_target = _DUTY_MIN;
     if (duty_target > _DUTY_MAX) duty_target = _DUTY_MAX;
 
     error_prev = error_curr;
   }
-
+  
+  if (millis() < last_sampling_time_servo + _INTERVAL_SERVO) return;
+  else event_servo = true;
   if (event_servo) {
     event_servo = false;
     if (duty_target > duty_curr) {
@@ -118,7 +114,9 @@ void loop() {
     }
     myservo.writeMicroseconds(duty_curr);
   }
-
+  
+  if (millis() < last_sampling_time_serial + _INTERVAL_SERIAL) return;
+  else event_serial = true;
   if (event_serial) {
     event_serial = false;
     Serial.print("dist_ir:");
