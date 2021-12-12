@@ -24,7 +24,7 @@
 #define _INTERVAL_SERVO 20
 #define _INTERVAL_SERIAL 100
 
-#define _KP 0.0
+#define _KP 0.4
 #define _KD 40
 
 Servo myservo;
@@ -88,9 +88,9 @@ void loop() {
     else digitalWrite(PIN_LED, 255);
   
     error_curr = dist_target - dist_ema;
-    pterm = error_curr;
+    pterm = _KP * error_curr;
     dterm = _KD * (error_curr - error_prev);
-    control = dterm;
+    control = pterm + dterm;
     
     duty_target = duty_neutral + control;
 
@@ -125,6 +125,8 @@ void loop() {
     Serial.print(dist_cali);
     Serial.print(",dist_ema:");
     Serial.print(dist_ema);
+    Serial.print(",pterm:");
+    Serial.print(map(pterm,-1000,1000,510,610));
     Serial.print(",dterm:");
     Serial.print(map(dterm,-1000,1000,510,610));
     Serial.print(",duty_target:");
