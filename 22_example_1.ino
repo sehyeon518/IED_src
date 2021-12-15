@@ -11,20 +11,21 @@
 #define _DIST_MIN 100
 #define _DIST_MAX 410
 
-#define _DIST_ALPHA 0.1
+#define _DIST_ALPHA 0.2
 
 #define _DUTY_MIN 553
 #define _DUTY_NEU 1476
 #define _DUTY_MAX 2399
 
-#define _SERVO_ANGLE 30
-#define _SERVO_SPEED 180
+#define _SERVO_ANGLE 17
+#define _SERVO_SPEED 50
 
-#define _INTERVAL_DIST 5
-#define _INTERVAL_SERVO 5
-#define _INTERVAL_SERIAL 60
+#define _INTERVAL_DIST 20
+#define _INTERVAL_SERVO 20
+#define _INTERVAL_SERIAL 100
 
-#define _KP 1
+#define _KP 1.5
+#define _KD 0.0
 
 Servo myservo;
 
@@ -54,7 +55,7 @@ void setup() {
 
   myservo.attach(PIN_SERVO);
 
-  duty_chg_per_interval = (float)(_DUTY_MAX - _DUTY_MIN) * _SERVO_SPEED / 180 * _INTERVAL_SERVO / 1000;
+  duty_chg_per_interval = (float)(_DUTY_MAX - _DUTY_MIN) * _SERVO_SPEED / _SERVO_ANGLE * _INTERVAL_SERVO / 1000;
   duty_curr = duty_target = duty_neutral = _DUTY_NEU + 60;
   last_sampling_time_dist = last_sampling_time_servo = last_sampling_time_serial = 0;
   event_dist = event_servo = event_serial = false;
@@ -64,12 +65,11 @@ void setup() {
   alpha = _DIST_ALPHA;
 
   a = 80;
-  b = 370;
+  b = 330;
   
   count = 0;
 
   myservo.writeMicroseconds(duty_neutral);
-  
 }
 
 /////////////////////////////////////////////////////////////////
@@ -77,6 +77,36 @@ void setup() {
 /////////////////////////////////////////////////////////////////
 void loop() {
   count += 1; 
+/////////////////////////// distance ////////////////////////////
+  if (millis() < last_sampling_time_dist + _INTERVAL_DIST) return;
+  else event_dist = true;
+  if (event_dist) {
+    event_dist = false;
+//    dist_raw = ir_distance();
+//    dist_cali = ir_distance_filtered(dist_raw);
+    float volt = float(analogRead(PIN_IR));
+    dist_raw = ((6762.0/(volt-9.0))-4.0) * 10.0;
+    dist_cali = 100 + 300.0 / (b - a) * (dist_raw - a);
+    if (dist_cali < _DIST_MIN || dist_cali > _DIST_MAX) {
+      dist_cali = dist_ema_prev;
+    }
+    if (count == 1) dist_ema = 0;
+    else {
+      dist_ema = alpha * dist_cali + (1-alpha) * dist_ema;
+      dist_ema_prev = dist_ema;
+    }
+    ///
+    error_curr = dist_target - dist_ema;
+    pterm = _KP * error_curr;
+    dterm = _KD * (error_curr - error_prev);
+    control = pterm + dterm;
+    duty_target = duty_neutral + control;
+    ///
+    error_prev = error_curr;  
+    if(dist_ema > 200 && dist_ema < 350) digitalWrite(PIN_LED, 0);
+    else digitalWrite(PIN_LED, 255);
+  }
+  last_sampling_time_dist += _INTERVAL_DIST;
 ///////////////////////////// servo /////////////////////////////
   if (millis() < last_sampling_time_servo + _INTERVAL_SERVO) return;
   else event_servo = true;
@@ -93,35 +123,6 @@ void loop() {
     myservo.writeMicroseconds(duty_curr);
   }  
   last_sampling_time_servo += _INTERVAL_SERVO;
-/////////////////////////// distance ////////////////////////////
-  if (millis() < last_sampling_time_dist + _INTERVAL_DIST) return;
-  else event_dist = true;
-  if (event_dist) {
-    event_dist = false;
-//    dist_raw = ir_distance();
-//    dist_cali = ir_distance_filtered(dist_raw);
-    float volt = float(analogRead(PIN_IR));
-    dist_raw = ((6762.0/(volt-9.0))-4.0) * 10.0;
-    dist_cali = 100 + 300.0 / (b - a) * (dist_raw - a);
-    if (dist_cali < _DIST_MIN || dist_cali > _DIST_MAX) {
-      dist_cali = dist_ema_prev;
-    }
-    if (count == 1) dist_ema = 0;
-    else {
-      dist_ema = alpha * dist_cali + (1-alpha) * dist_ema_prev;
-      dist_ema_prev = dist_ema;
-    }
-    ///
-    error_curr = dist_target - dist_ema;
-    pterm = _KP * error_curr;
-    control = pterm;
-    duty_target = duty_neutral + control;
-    ///
-    error_prev = error_curr;  
-    if(dist_ema > 200 && dist_ema < 350) digitalWrite(PIN_LED, 0);
-    else digitalWrite(PIN_LED, 255);
-  }
-  last_sampling_time_dist += _INTERVAL_DIST;
 ///////////////////////////// serial ////////////////////////////
   if (millis() < last_sampling_time_serial + _INTERVAL_SERIAL) return;
   else event_serial = true;  
@@ -143,14 +144,4 @@ void loop() {
   }
   last_sampling_time_serial += _INTERVAL_SERIAL;
 /////////////////////////////////////////////////////////////////
-}
-
-float ir_distance(void) {
-  float val;
-  float volt = float(analogRead(PIN_IR));
-  val = ((6762.0/(volt-9.0))-4.0) * 10.0;
-  return val;
-}
-float ir_distance_filtered(float raw) {
-  return 100 + 300.0 / (b - a) * (raw - a);
 }
