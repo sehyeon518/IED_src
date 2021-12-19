@@ -22,7 +22,7 @@
 #define DELAY_MICROS 1500
 
 #define _KP 1
-#define _KD 60
+#define _KD 100
 #define _KI 0.007
 
 #define a 80
