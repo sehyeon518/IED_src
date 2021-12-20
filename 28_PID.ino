@@ -8,21 +8,21 @@
 #define _DIST_MAX 410
 #define _DIST_ALPHA 0.05
 
-#define _DUTY_MIN 1630
+#define _DUTY_MIN 1100
 #define _DUTY_NEU 1350
-#define _DUTY_MAX 1100   
+#define _DUTY_MAX 1630   
 
 #define _SERVO_ANGLE 45  
 #define _SERVO_SPEED 250
 
-#define _INTERVAL_DIST 30  //각 event 사이에 지정한 시간 간격
+#define _INTERVAL_DIST 20
 #define _INTERVAL_SERVO 20
-#define _INTERVAL_SERIAL 130
+#define _INTERVAL_SERIAL 100
 
 #define DELAY_MICROS 1500
 
 #define _KP 1
-#define _KD 100
+#define _KD 80
 #define _KI 0.007
 
 #define a 80
@@ -33,7 +33,6 @@ Servo myservo;
 float dist_target = _DIST_TARGET;
 float dist_raw;
 float dist_ema = 0;
-float samples_num = 3; 
 
 // Event periods
 unsigned long last_sampling_time_dist, last_sampling_time_servo, last_sampling_time_serial;
@@ -61,13 +60,13 @@ void setup() {
   Serial.begin(57600);
 
   // convert angle speed into duty change per interval.
-  duty_chg_per_interval = (_DUTY_MIN - _DUTY_MAX) * (_SERVO_SPEED / _SERVO_ANGLE ) * (_INTERVAL_SERVO / 1000.0);
+  duty_chg_per_interval = (_DUTY_MAX - _DUTY_MIN) * (_SERVO_SPEED / _SERVO_ANGLE ) * (_INTERVAL_SERVO / 1000.0);
 }
  
 
 void loop() {
 
-unsigned long time_curr = millis();
+  unsigned long time_curr = millis();
   if(time_curr >= last_sampling_time_dist + _INTERVAL_DIST){
     last_sampling_time_dist += _INTERVAL_DIST;
     event_dist = true; }
@@ -141,7 +140,7 @@ float ir_distance(void){ // return value unit: mm
 float under_noise_filter(void){
   int currReading;
   int largestReading = 0;
-  for (int i = 0; i < samples_num; i++) {
+  for (int i = 0; i < 3; i++) {
     currReading = ir_distance();
     if (currReading > largestReading) { largestReading = currReading; }
     // Delay a short time before taking another reading
@@ -154,7 +153,7 @@ float ir_distance_filtered(void){
   int currReading;
   int lowestReading = 1024;
   dist_raw = ir_distance();
-  for (int i = 0; i < samples_num; i++) {
+  for (int i = 0; i < 3; i++) {
     currReading = under_noise_filter();
     if (currReading < lowestReading) { lowestReading = currReading; }
   }
